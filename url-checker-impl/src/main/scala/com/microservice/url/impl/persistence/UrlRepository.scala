@@ -1,11 +1,13 @@
 package com.microservice.url.impl.persistence
 
 import java.net.HttpURLConnection.HTTP_OK
-import java.time.{LocalDate, LocalDateTime, LocalTime}
+import java.time._
 
+import akka.persistence.query.{NoOffset, Offset, Sequence}
 import com.lightbend.lagom.scaladsl.api.transport.NotFound
 import com.microservice.url.api.UrlCheckerService.ID
-import com.microservice.url.api.{DeadUrl, UrlError, UrlStatus}
+import com.microservice.url.api.{UrlError, UrlStatus}
+import com.microservice.url.impl.persistence.DateConverter.fromEpochMilli
 import com.microservice.url.impl.persistence.UrlQueries._
 import com.microservice.url.impl.persistence.UrlState.{Alive, PotentiallyDead}
 import slick.basic.DatabasePublisher
@@ -14,9 +16,9 @@ import slick.dbio.{DBIO, DBIOAction, NoStream, Streaming}
 import slick.jdbc.JdbcBackend
 import slick.jdbc.PostgresProfile.api._
 
-import scala.collection.{immutable, mutable}
+import scala.collection.mutable
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
   * URL entities repository.
@@ -135,20 +137,19 @@ class UrlRepository(implicit ec: ExecutionContext) {
   /**
     * Get last dead urls for sending to Kafka Topic.
     */
-  def getLastDeadUrls: immutable.Iterable[DeadUrl] = {
-    val lastSendTime = LocalDateTime.now.minusSeconds(33)
-    val deadUrls = for {
+  def getLastDeadUrls(offset: Offset): DatabasePublisher[(UrlEntity, ID)] = {
+    val lastOffsetTime = offset match {
+      case NoOffset => 0L
+      case Sequence(value) => value
+    }
+    val lastSendTime = fromEpochMilli(lastOffsetTime)
+    val deadUrlsWithIds = for {
       u <- urls if u.state === UrlState.Dead && u.lastCheckTime > lastSendTime
       ui <- urlIdMaps if ui.urlId === u.id
       i <- ids if i.id === ui.id
     } yield (u, i.value)
-    Await.result(run(deadUrls.result.map {
-      _.groupBy(_._1).map { case (k, v) => toDeadUrl(k, v.map(_._2)) }
-    }), 10.seconds)
+    stream(deadUrlsWithIds.sortBy(_._1.lastCheckTime.asc).result)
   }
-
-  private def toDeadUrl(urlEntity: UrlEntity, idList: Seq[String]): DeadUrl =
-    DeadUrl(urlEntity.url, idList, UrlError(urlEntity.code, urlEntity.message))
 
   /**
     * Save UrlEntity to database.
