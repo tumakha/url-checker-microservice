@@ -1,16 +1,13 @@
 DROP TABLE IF EXISTS url_id_map;
 DROP TABLE IF EXISTS url;
 DROP TABLE IF EXISTS id;
-DROP USER IF EXISTS yura;
-
-CREATE USER yura WITH PASSWORD 'Password2017';
 
 CREATE TABLE id (
   id    bigserial PRIMARY KEY,
   value varchar UNIQUE
 );
 
-ALTER TABLE id OWNER to yura;
+ALTER TABLE id OWNER to postgres;
 
 CREATE TABLE url (
     url_id bigserial PRIMARY KEY,
@@ -22,7 +19,7 @@ CREATE TABLE url (
     http_message varchar NOT NULL DEFAULT 'OK'::varchar
 );
 
-ALTER TABLE url OWNER to yura;
+ALTER TABLE url OWNER to postgres;
 
 CREATE TABLE url_id_map (
     url_id  bigint NOT NULL,
@@ -38,4 +35,4 @@ CREATE TABLE url_id_map (
         ON DELETE NO ACTION
 );
 
-ALTER TABLE url_id_map OWNER to yura;
+ALTER TABLE url_id_map OWNER to postgres;

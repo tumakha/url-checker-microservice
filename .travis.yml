@@ -3,5 +3,10 @@ scala:
 - 2.11.8
 jdk:
 - oraclejdk8
+services:
+  - postgresql
+before_script:
+  - psql -c 'create database url-checker;' -U postgres
+  - psql -U postgres -d url-checker ./sql/schema.create.sql
 script:
   - sbt test
