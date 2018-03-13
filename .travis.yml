@@ -6,7 +6,7 @@ jdk:
 services:
   - postgresql
 before_script:
-  - psql -c 'create database urlchecker;' -U postgres
+  - psql -U postgres -c 'create database urlchecker;'
   - psql -U postgres -d urlchecker -f ./sql/schema.create.sql
 script:
   - sbt test
