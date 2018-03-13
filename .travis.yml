@@ -7,6 +7,6 @@ services:
   - postgresql
 before_script:
   - psql -c 'create database urlchecker;' -U postgres
-  - psql -U postgres -d urlchecker ./sql/schema.create.sql
+  - psql -U postgres -d urlchecker -f ./sql/schema.create.sql
 script:
   - sbt test
